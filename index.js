@@ -12,7 +12,7 @@ const env = require('dotenv').config({path: path.join(__dirname, '.env')});
 const IG_USERNAME = (process.env.IG_USERNAME || 'plop');
 const IG_PASSWORD = (process.env.IG_PASSWORD || 'plavip');
 const SOCK_PORT = 8080;
-const LIKES_PER_DAY = 4000;
+const LIKES_PER_DAY = 1000;
 const LIKES_PER_TAG = 10;
 
 var Client = require('instagram-private-api').V1;
@@ -35,11 +35,7 @@ app.listen(app.get('port'), function() {
     console.log('Example app listening on port ' + app.get('port'))
 });
 
-
-console.log(env);
-
-
-const wss = new WebSocket.Server({port: 8080});
+const wss = new WebSocket.Server({port: SOCK_PORT});
 var client;
 var likeInterval;
 var running = false;
@@ -53,7 +49,8 @@ var totalLikeCount = 0;
 
 
 const output = (msg, type = 'info') => {
-    console.log(msg);
+    if (console[type]) console[type](msg)
+        else console.log(msg);
     if (client) {
         if (typeof msg === "string") {
             return client.send(msg);
@@ -105,6 +102,21 @@ const switchTag = () => {
     }
 };
 
+const routine = () => {
+    if(!running){
+        return false;
+    }
+    if(currentSetIndex >= currentSet.length - 1 || currentSetIndex >= LIKES_PER_TAG){
+        output('Should wither switch or fail.');
+        if(currentSet.length > 1){
+            return switchTag();
+        } else {
+            return false;
+        }
+    }
+    IGM.like(currentSet[currentSetIndex].id);
+};
+
 const initTagRoutine = tag => {
     if(likeInterval) clearInterval(likeInterval);
     output(`Starting with Hashtag #${tag}...`, 'info');
@@ -113,27 +125,12 @@ const initTagRoutine = tag => {
     // Start on first item of search results
     currentSetIndex = 0;
     currentTag = tag;
-    IGM.search(tag);
-
-    likeInterval = setInterval(function () {
-            if(!running){
-                return false;
-            }
-            if(currentSetIndex >= currentSet.length - 1 || currentSetIndex >= LIKES_PER_TAG){
-                output('Should wither switch or fail.');
-                if(currentSet.length > 1){
-                    return switchTag();
-                } else {
-                    return false;
-                }
-            }
-            IGM.like(currentSet[currentSetIndex].id);
-    } , delay);
-
+    IGM.search(tag, true);
+    likeInterval = setInterval(routine, delay);
 };
 
 const IGM = {
-    search: term => {
+    search: (term, start = false) => {
         currentSet = [];
         if(!s) return false;
         var list = new Client.Feed.TagMedia(s, term);
@@ -144,6 +141,7 @@ const IGM = {
             res.forEach(function (item, index) {
                     currentSet.push(item.params);
             });
+            if(start) routine();
         });
     },
     like: (id, success, error) => {
@@ -159,6 +157,8 @@ const IGM = {
         if(!error){
             error = function (err) {
                 output(err.message, 'error');
+                output('ERROR: Here is the response:', 'error');
+                output(err, 'error');
             };
         }
         return new Client.Request(s)
@@ -192,6 +192,7 @@ const CMD_LIST = {
         resetBot();
 
     },
+    next: () => switchTag(),
     search: tag => {
         console.log("Should perform a search for hashtag: " + tag);
         var list = new Client.Feed.TagMedia(s, tag);
@@ -216,6 +217,8 @@ const CMD_LIST = {
                         return new Client.Like(s, {});
                     }).catch(function (err) {
                         output(err.message);
+                        output('ERROR: Here is the response:', 'error');
+                        output(err);
                     });
 
     },
