@@ -1,0 +1,19 @@
+{
+  "name": "insta-robot",
+  "version": "1.0.0",
+  "description": "Like whoring robot for maximum recognition",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Carlos El Chiquito",
+  "license": "MIT",
+  "dependencies": {
+    "bufferutil": "^3.0.2",
+    "dotenv": "^5.0.1",
+    "express": "^4.16.2",
+    "instagram-private-api": "^0.6.7",
+    "utf-8-validate": "^3.0.3",
+    "ws": "^3.2.0"
+  }
+}
