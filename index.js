@@ -1,5 +1,4 @@
 
-
 const express = require('express');
 const app = express();
 const path = require('path');
@@ -8,6 +7,10 @@ const fs = require('fs');
 const bodyParser = require('body-parser');
 const WebSocket = require('ws');
 const env = require('dotenv').config({path: path.join(__dirname, '.env')});
+
+const Database = require('./db');
+const db = new Database('testBot');
+db.init();
 
 const IG_USERNAME = (process.env.IG_USERNAME || 'plop');
 const IG_PASSWORD = (process.env.IG_PASSWORD || 'plavip');
@@ -19,10 +22,9 @@ var Client = require('instagram-private-api').V1;
 var device = new Client.Device('charleshaa');
 var storage = new Client.CookieFileStorage(__dirname + '/cookies/charleshaa.json');
 
-
-
 var s;
 var user;
+
 
 app.set('port', (process.env.PORT || 3001));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -198,7 +200,7 @@ const CMD_LIST = {
         console.log("Should perform a search for hashtag: " + tag);
         var list = new Client.Feed.TagMedia(s, tag);
         list.get().then(function(res) {
-            console.log(res);
+            output(res[0]);
             output("Got a set of results:");
             output(`<a target="_blank" href="${res[0].params.webLink}">${res[0].params.id}</a>`);
         });
