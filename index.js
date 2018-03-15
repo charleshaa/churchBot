@@ -89,17 +89,20 @@ const resetBot = () => {
 
 };
 
-const switchTag = () => {
+const switchTag = (dir = 'next') => {
 
     currentSetIndex = 0;
-    tagCursor = tagCursor + 1;
+    tagCursor = dir === 'next' ? tagCursor + 1 : tagCursor - 1;
+    if ( (tagCursor === 0 || tagCursor === -1)  && dir === 'prev') tagCursor = hashtags.length - 1;
     currentTag = hashtags[tagCursor];
-    output(`Switching to Hashtag #${currentTag}...`, 'info');
     if(!currentTag){
-        // TODO
+        tagCursor = 0;
+        currentTag = hashtags[tagCursor];
+        initTagRoutine(currentTag);
     } else {
         initTagRoutine(currentTag);
     }
+    output(`Switching to Hashtag #${currentTag}...`, 'info');
 };
 
 const routine = () => {
@@ -107,7 +110,7 @@ const routine = () => {
         return false;
     }
     if(currentSetIndex >= currentSet.length - 1 || currentSetIndex >= LIKES_PER_TAG){
-        output('Should wither switch or fail.');
+        output('Should wether switch or fail.');
         if(currentSet.length > 1){
             return switchTag();
         } else {
@@ -188,11 +191,9 @@ const CMD_LIST = {
 
 
     },
-    stop: () => {
-        resetBot();
-
-    },
+    stop: () => resetBot(),
     next: () => switchTag(),
+    prev: () => switchTag('prev'),
     search: tag => {
         console.log("Should perform a search for hashtag: " + tag);
         var list = new Client.Feed.TagMedia(s, tag);
