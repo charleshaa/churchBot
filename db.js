@@ -10,6 +10,19 @@ module.exports = function(dbName){
         db = new sql.Database(this.fileName + '.sqlite3', createTagsTable);
     };
 
+    function validateTag(tag){
+        return tag.indexOf(' ') < 0 || tag.indexOf('#') < 0;
+    }
+
+    function insertTag(tag, cb){
+        if(!validateTag(tag)) return false;
+        const stmt = `INSERT INTO tags(tag) VALUES('${tag}');`;
+        return db.run(stmt, function(){
+            console.info(`Inserted tag #${tag} with ID ${this.lastID}`);
+            if (cb) cb();
+        });
+    }
+
     function createTagsTable(){
         const stmt = `CREATE TABLE IF NOT EXISTS hashtags (
             id INTEGER PRIMARY KEY,
