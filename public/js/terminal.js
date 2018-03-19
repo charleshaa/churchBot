@@ -57,6 +57,7 @@ $(document).ready(function() {
 
     const processCmd = cmd => {
         stdin.val('');
+        console.log('Sending command', cmd);
         ws.send(cmd);
         var rappel = $('<p class="rappel"></p>');
         rappel.text(">> Command: " + cmd);

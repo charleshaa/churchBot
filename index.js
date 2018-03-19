@@ -143,6 +143,7 @@ const IGM = {
             var log = `Found ${res.length} items for Hashtag #${term}.`;
             console.log(log);
             output(log);
+            console.log(res[0].params);
             res.forEach(function (item, index) {
                     currentSet.push(item.params);
             });
@@ -196,6 +197,20 @@ const CMD_LIST = {
     stop: () => resetBot(),
     next: () => switchTag(),
     prev: () => switchTag('prev'),
+    insert: (args) => {
+        if (args[0] === 'tag'){
+            db.insertTag(args[1], function(data){
+                output(data);
+            });
+        }
+    },
+    get: (args) => {
+        if (args[0] === 'tag'){
+            db.getTagBySlug(args[1], function(data){
+                output(data);
+            });
+        }
+    },
     search: tag => {
         console.log("Should perform a search for hashtag: " + tag);
         var list = new Client.Feed.TagMedia(s, tag);
@@ -234,8 +249,12 @@ const SOCK_EVENTS = {
     message: msg => {
         console.log('received command: %s', msg);
         var params = msg.split(' ');
-        if (CMD_LIST.hasOwnProperty(params[0])) {
-            CMD_LIST[params[0]](params[1]);
+        var cmd = params[0];
+        if (CMD_LIST.hasOwnProperty(cmd)) {
+            var args = params.splice(0,1);
+            if (params.length > 1) CMD_LIST[cmd](params)
+            else CMD_LIST[cmd](params[0]);
+            
         } else {
             output("ERROR: Command not found: " + params[0]);
         }
