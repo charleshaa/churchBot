@@ -131,6 +131,8 @@ const initTagRoutine = tag => {
     currentSetIndex = 0;
     currentTag = tag;
     IGM.search(tag, true);
+    // Store session in DB
+    db.insertSession(hashtags);
     likeInterval = setInterval(routine, delay);
 };
 

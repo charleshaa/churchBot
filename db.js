@@ -79,7 +79,7 @@ module.exports = function(dbName){
         });
     }
 
-    this.insertSession = tags => {
+    this.insertSession = (tags, cb) => {
         const stmt = `INSERT INTO sessions(
             tags, 
             tag_count 
@@ -89,12 +89,33 @@ module.exports = function(dbName){
         );`;
         const list = tags.join(',');
         return db.run(stmt, 
-        list,
-        tags.length,
+        [list,
+        tags.length],
         function(){
-            console.info(`Inserted session`);
+            console.info(`Inserted session with ID ${this.lastID}`);
             if (cb) cb(tags);
         });
+    };
+
+    this.closeSession = (data, cb) => {
+        const stmt = `UPDATE sessions SET 
+                        end_time = strftime('%s', 'now'),
+                        like_attempts = ?,
+                        like_success = ?,
+                        flag_count = ? 
+                        WHERE id = ?`;
+
+        return db.run(stmt, [
+                        data.attemps,
+                        data.success,
+                        data.flagCount,
+                        data.sid
+                        ],
+                        function(){
+                            console.info(`Updated session ID ${this.lastID}`);
+                            if (cb) cb(this.lastID, data);
+                        });
+
     };
 
     this.insertLike = (sid, igid, success, mediaId) => {
@@ -109,11 +130,12 @@ module.exports = function(dbName){
             ?,
             ?
         );`;
-        return db.run(stmt, 
+        return db.run(stmt, [ 
         sid,
         igid,
         success,
-        mediaId,
+        mediaId
+        ],
         function(){
             console.info(`Inserted session`);
             if (cb) cb(tags);
