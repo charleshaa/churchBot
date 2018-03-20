@@ -8,24 +8,25 @@ module.exports = function(dbName){
     
     this.init = () => {
         db = new sql.Database(this.fileName + '.sqlite3', createTagsTable);
+        db.on('trace', function(stmt){
+            console.info('\r\n---\r\nExecuted query: \r\n' + stmt + '\r\n---');
+        });
     };
 
     function validateTag(tag){
         return tag.indexOf(' ') < 0 || tag.indexOf('#') < 0;
     }
 
-    this.insertMedia = (media, like_id, liked) => {
+    this.insertMedia = (media, cb) => {
         const stmt = `INSERT INTO media(
                                     ig_id, 
-                                    like_id, 
                                     media_type, 
                                     taken_at, 
                                     author_username, 
                                     author_displayname, 
                                     author_avatar, 
                                     caption,
-                                    weblink,
-                                    was_liked
+                                    web_link
                                 ) VALUES(
                                     ?,
                                     ?,
@@ -34,31 +35,31 @@ module.exports = function(dbName){
                                     ?,
                                     ?,
                                     ?,
-                                    ?,
-                                    ?,
                                     ?
-                                );`;
-        console.log(media);
-        
-        return db.run(stmt, 
+                                );`;        
+        return db.run(stmt, [
             media.id, 
-            like_id, 
             media.mediaType,
             media.takenAt, 
             media.user.username, 
             media.user.full_name,
             media.user.profile_pic_url,
             media.caption,
-            media.webLink,
-            liked,
-            function(){
-                console.info(`Inserted media`);
-                if (cb) cb();
+            media.webLink
+        ],
+            function(err){
+                if(err){
+                    console.log('ERROR !');
+                    console.error(err);
+                } else {
+                    if (cb) cb(this.lastID);
+                }
+                
             });
     }
 
     this.getTag = (id, cb) => {
-        const stmt = `SELECT * FROM tags WHERE id = ${id}`;
+        const stmt = `SELECT * FROM hashtags WHERE id = ${id}`;
         let data = [];
         db.each(stmt, function(err, row){
             data.push(row);
@@ -93,7 +94,7 @@ module.exports = function(dbName){
         tags.length],
         function(){
             console.info(`Inserted session with ID ${this.lastID}`);
-            if (cb) cb(tags);
+            if (cb) cb(this.lastID);
         });
     };
 
@@ -118,9 +119,10 @@ module.exports = function(dbName){
 
     };
 
-    this.insertLike = (sid, igid, success, mediaId) => {
+    this.insertLike = (sid, igid, hashtag, success, mediaId, cb) => {
         const stmt = `INSERT INTO likes(
-            session_id, 
+            session_id,
+            hashtag, 
             ig_id,
             success,
             media 
@@ -128,17 +130,33 @@ module.exports = function(dbName){
             ?,
             ?,
             ?,
+            ?,
             ?
         );`;
         return db.run(stmt, [ 
         sid,
+        hashtag,
         igid,
         success,
         mediaId
         ],
-        function(){
-            console.info(`Inserted session`);
-            if (cb) cb(tags);
+        function(err){
+            if ( err ) {
+                console.log(err);
+            } else {
+                console.info(`Inserted like ID ${this.lastID}`);
+                if(cb) cb(this.lastID);
+            }
+            
+        });
+    };
+
+    this.likeFailed = id => {
+        const stmt = `UPDATE likes SET 
+                        success = 0 
+                        WHERE id = ?`;
+        db.run(stmt, [id], function(){
+            console.log('Should have marked like ' + id + ' to have failed.');
         });
     };
 
@@ -156,7 +174,7 @@ module.exports = function(dbName){
             id INTEGER PRIMARY KEY,
             tag TEXT, 
             like_count INTEGER DEFAULT (0),
-            blocked BOOLEAN DEFAULT (false),
+            blocked BOOLEAN,
             last_used TIMESTAMP DEFAULT (strftime('%s', 'now')),
             times_used INTEGER DEFAULT (0)
         );`;
@@ -167,8 +185,9 @@ module.exports = function(dbName){
         const stmt = `CREATE TABLE IF NOT EXISTS likes (
                         id INTEGER PRIMARY KEY,
                         session_id INTEGER,
+                        hashtag INTEGER,
                         ig_id TEXT, 
-                        success BOOLEAN DEFAULT (false), 
+                        success BOOLEAN, 
                         time TIMESTAMP DEFAULT (strftime('%s', 'now')),
                         media INTEGER
                     )`;

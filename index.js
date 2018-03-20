@@ -48,7 +48,8 @@ var currentTag;
 var hashtags;
 var tagLikeCount = 0;
 var totalLikeCount = 0;
-
+var successLikeCount = 0;
+var botSessionId;
 
 const output = (msg, type = 'info') => {
     if (console[type]) console[type](msg)
@@ -107,6 +108,16 @@ const switchTag = (dir = 'next') => {
     output(`Switching to Hashtag #${currentTag}...`, 'info');
 };
 
+const likeMedia = media => {
+
+    db.insertMedia(media, function(id){
+        db.insertLike(botSessionId, media.id, currentTag, true, id, function(id){
+            IGM.like(currentSet[currentSetIndex].id, id);
+        });
+    });
+    
+};
+
 const routine = () => {
     if(!running){
         return false;
@@ -119,7 +130,8 @@ const routine = () => {
             return false;
         }
     }
-    IGM.like(currentSet[currentSetIndex].id);
+    
+    likeMedia(currentSet[currentSetIndex]);
 };
 
 const initTagRoutine = tag => {
@@ -132,7 +144,10 @@ const initTagRoutine = tag => {
     currentTag = tag;
     IGM.search(tag, true);
     // Store session in DB
-    db.insertSession(hashtags);
+    db.insertSession(hashtags, sid => {
+        output("DB says session is saved with ID " + sid);
+        botSessionId = sid;
+    });
     likeInterval = setInterval(routine, delay);
 };
 
@@ -145,30 +160,30 @@ const IGM = {
             var log = `Found ${res.length} items for Hashtag #${term}.`;
             console.log(log);
             output(log);
-            console.log(res[0].params);
             res.forEach(function (item, index) {
                     currentSet.push(item.params);
             });
             if(start) routine();
         });
     },
-    like: (id, success, error) => {
+    like: (id, likeId) => {
         if(!id || id === "") return false;
-        if(!success){
-            success = function(data) {
-                var like = new Client.Like(s, {});
-                currentSetIndex++;
-                output(`Successfully liked media ID ${id}.`, 'success');
-                return like;
-            };
-        }
-        if(!error){
-            error = function (err) {
-                output(err.message, 'error');
-                output('ERROR: Here is the response:', 'error');
-                output(err, 'error');
-            };
-        }
+        const success = function(data) {
+            var like = new Client.Like(s, {});
+            currentSetIndex++;
+            successLikeCount++;
+            output(`Successfully liked media ID ${id}.`, 'success');
+            return like;
+        };
+        
+        const error = function (err) {
+            output(err.message, 'error');
+            output('ERROR: Here is the response:', 'error');
+            output(err, 'error');
+            db.likeFailed(likeId);
+        };
+        
+        totalLikeCount++;
         return new Client.Request(s)
                     .setMethod('POST')
                     .setResource('like', {id: id})
