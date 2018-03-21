@@ -88,12 +88,16 @@ const resetBot = () => {
     clearInterval(likeInterval);
     currentSet = [];
     running = false;
+    // Save all stats
+
+
     output('McBot Face has been halted and reset.', 'warning');
 
 };
 
 const switchTag = (dir = 'next') => {
-
+    db.updateTagLikes(currentTag, tagLikeCount);
+    tagLikeCount = 0;
     currentSetIndex = 0;
     tagCursor = dir === 'next' ? tagCursor + 1 : tagCursor - 1;
     if ( (tagCursor === 0 || tagCursor === -1)  && dir === 'prev') tagCursor = hashtags.length - 1;
@@ -142,6 +146,7 @@ const initTagRoutine = tag => {
     // Start on first item of search results
     currentSetIndex = 0;
     currentTag = tag;
+    tagLikecount = 0;
     IGM.search(tag, true);
     // Store session in DB
     db.insertSession(hashtags, sid => {
@@ -172,6 +177,7 @@ const IGM = {
             var like = new Client.Like(s, {});
             currentSetIndex++;
             successLikeCount++;
+            tagLikeCount++;
             output(`Successfully liked media ID ${id}.`, 'success');
             return like;
         };
@@ -184,6 +190,7 @@ const IGM = {
         };
         
         totalLikeCount++;
+        
         return new Client.Request(s)
                     .setMethod('POST')
                     .setResource('like', {id: id})

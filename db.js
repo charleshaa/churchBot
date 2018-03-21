@@ -80,6 +80,18 @@ module.exports = function(dbName){
         });
     }
 
+    this.getMediaBy = (prop, limit, value, cb) => {
+        let stmt = `SELECT * FROM media 
+                    WHERE ${prop} = '${value}' 
+                    ORDER BY id DESC 
+                    LIMIT ${limit}`;
+        return db.all(stmt, [], function(err, rows){
+            if(err) return fail(err);
+            if(cb) cb(rows);            
+        });
+
+    };
+
     this.insertSession = (tags, cb) => {
         const stmt = `INSERT INTO sessions(
             tags, 
@@ -167,6 +179,34 @@ module.exports = function(dbName){
             console.info(`Inserted tag #${tag} with ID ${this.lastID}`);
             if (cb) cb();
         });
+    }
+
+    this.updateLikeCount = (tag, likes) => {
+        const stmt = `UPDATE hashtags SET 
+                      like_count += like_count + ${likes} 
+                      WHERE tag = '${tag}'`;
+
+        return db.run(stmt, [], failed);
+    };
+
+    this.updateSessionStats = (sid, total, liked) => {
+        const stmt = `UPDATE sessions SET 
+                        like_attempts = ?,
+                        like_success = ?,
+                        end_time = strftime('%s', 'now')
+                        WHERE id = ?
+                        `;
+
+        return db.run(stmt, [total, liked, sid], fail);
+    };
+
+    function failed(err){
+        if(err){
+            console.error('\r\nERROR !\r\n');
+            console.error(err);
+        } else {
+            if(cb) cb(this);
+        }
     }
 
     function createTagsTable(){
