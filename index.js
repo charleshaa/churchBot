@@ -321,8 +321,14 @@ const setupServerEvents = (wss) => {
 
 };
 
+const test = () => {
+    db.getMediaBy('id', 2, 100, function(medias){
+        output(medias);
+        db.getMedia(100, output);
+    });
+};
 
 
 setupServerEvents(wss);
-
+test();
 // Instagram

@@ -80,16 +80,26 @@ module.exports = function(dbName){
         });
     }
 
-    this.getMediaBy = (prop, limit, value, cb) => {
-        let stmt = `SELECT * FROM media 
+    this.getMediaBy = (prop, value, limit, cb) => {
+        let stmt = `SELECT DISTINCT * FROM media 
                     WHERE ${prop} = '${value}' 
                     ORDER BY id DESC 
                     LIMIT ${limit}`;
         return db.all(stmt, [], function(err, rows){
-            if(err) return fail(err);
+            if(err) return failed(err);
             if(cb) cb(rows);            
         });
 
+    };
+
+    this.getMedia = (limit, cb) => {
+        let stmt = `SELECT DISTINCT ig_id FROM media 
+                    ORDER BY id DESC 
+                    LIMIT ${limit}`;
+        return db.all(stmt, [], function(err, rows){
+            if(err) return failed(err);
+            if(cb) cb(rows);            
+        });
     };
 
     this.insertSession = (tags, cb) => {
@@ -197,7 +207,7 @@ module.exports = function(dbName){
                         WHERE id = ?
                         `;
 
-        return db.run(stmt, [total, liked, sid], fail);
+        return db.run(stmt, [total, liked, sid], failed);
     };
 
     function failed(err){
@@ -237,7 +247,7 @@ module.exports = function(dbName){
     function createMediaTable(){
         const stmt = `CREATE TABLE IF NOT EXISTS media (
                         id INTEGER PRIMARY KEY,
-                        ig_id TEXT, 
+                        ig_id TEXT UNIQUE, 
                         like_id,
                         media_type INTEGER, 
                         taken_at TIMESTAMP,
