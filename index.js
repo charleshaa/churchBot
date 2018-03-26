@@ -15,7 +15,7 @@ db.init();
 const IG_USERNAME = (process.env.IG_USERNAME || 'plop');
 const IG_PASSWORD = (process.env.IG_PASSWORD || 'plavip');
 const SOCK_PORT = 8080;
-const LIKES_PER_DAY = 1000;
+const LIKES_PER_DAY = 3000;
 const LIKES_PER_TAG = 10;
 
 var Client = require('instagram-private-api').V1;
@@ -49,6 +49,7 @@ var hashtags;
 var tagLikeCount = 0;
 var totalLikeCount = 0;
 var successLikeCount = 0;
+var errorStrikes = 0;
 var botSessionId;
 
 const output = (msg, type = 'info') => {
@@ -96,7 +97,7 @@ const resetBot = () => {
 };
 
 const switchTag = (dir = 'next') => {
-    db.updateTagLikes(currentTag, tagLikeCount);
+    //db.updateTagLikes(currentTag, tagLikeCount);
     tagLikeCount = 0;
     currentSetIndex = 0;
     tagCursor = dir === 'next' ? tagCursor + 1 : tagCursor - 1;
@@ -187,6 +188,11 @@ const IGM = {
             output('ERROR: Here is the response:', 'error');
             output(err, 'error');
             db.likeFailed(likeId);
+            errorStrikes++;
+            if(errorStrikes > 3){
+                errorStrikes = 0;
+                switchTag();
+            }
         };
         
         totalLikeCount++;
