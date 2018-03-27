@@ -200,7 +200,7 @@ module.exports = function(dbName){
 
     this.updateLikeCount = (tag, likes) => {
         const stmt = `UPDATE hashtags SET 
-                      like_count += like_count + ${likes} 
+                      like_count = like_count + ${likes} 
                       WHERE tag = '${tag}'`;
 
         return db.run(stmt, [], failed);
@@ -229,7 +229,7 @@ module.exports = function(dbName){
     function createTagsTable(){
         const stmt = `CREATE TABLE IF NOT EXISTS hashtags (
             id INTEGER PRIMARY KEY,
-            tag TEXT, 
+            tag TEXT UNIQUE, 
             like_count INTEGER DEFAULT (0),
             blocked BOOLEAN,
             last_used TIMESTAMP DEFAULT (strftime('%s', 'now')),
@@ -255,7 +255,7 @@ module.exports = function(dbName){
         const stmt = `CREATE TABLE IF NOT EXISTS media (
                         id INTEGER PRIMARY KEY,
                         ig_id TEXT UNIQUE, 
-                        like_id,
+                        like_id INTEGER,
                         media_type INTEGER, 
                         taken_at TIMESTAMP,
                         author_username TEXT,
@@ -264,7 +264,8 @@ module.exports = function(dbName){
                         caption TEXT,
                         web_link TEXT,
                         was_liked BOOLEAN,
-                        flag BOOLEAN  
+                        flag BOOLEAN,
+                        photo_url TEXT
                     )`;
         db.run(stmt, createSessionsTable);
     };

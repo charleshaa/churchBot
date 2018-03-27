@@ -33,6 +33,11 @@ app.set('port', (process.env.PORT || 3001));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded());
 app.use(bodyParser.json());
+app.use(function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+  });
 app.get('/', function(req, res) {
     res.sendFile(path.join(__dirname + '/terminal.html'));
 });
@@ -73,6 +78,27 @@ const output = (msg, type = 'info') => {
     }
 };
 
+const sendStats = media => {
+    if(!client) return false;
+
+    const obj = {
+        likesSinceStart: successLikeCount,
+        likeAttempts: totalLikeCount,
+        currentTag: currentTag,
+        tagSet: hashtags,
+        lastMedia: {
+            id: media.id,
+            type: media.media_type,
+            link: media.webLink,
+            url: media.images[0].url
+        }
+    }
+
+    client.send(JSON.stringify(obj));
+
+};
+
+
 const initInstagram = () => {
     if (s)
         return true;
@@ -101,7 +127,7 @@ const resetBot = () => {
 };
 
 const switchTag = (dir = 'next') => {
-    //db.updateTagLikes(currentTag, tagLikeCount);
+    db.updateLikeCount(currentTag, tagLikeCount);
     tagLikeCount = 0;
     currentSetIndex = 0;
     tagCursor = dir === 'next' ? tagCursor + 1 : tagCursor - 1;
@@ -118,10 +144,12 @@ const switchTag = (dir = 'next') => {
 };
 
 const likeMedia = media => {
-
+    totalLikeCount++;
+    sendStats(media);
     db.insertMedia(media, function(id){
         db.insertLike(botSessionId, media.id, currentTag, true, id, function(id){
             IGM.like(currentSet[currentSetIndex].id, id);
+            
         });
     });
     
@@ -153,11 +181,7 @@ const initTagRoutine = tag => {
     currentTag = tag;
     tagLikecount = 0;
     IGM.search(tag, true);
-    // Store session in DB
-    db.insertSession(hashtags, user.params.followerCount, sid => {
-        output("DB says session is saved with ID " + sid);
-        botSessionId = sid;
-    });
+    db.insertTag(currentTag);
     likeInterval = setInterval(routine, delay);
 };
 
@@ -168,7 +192,6 @@ const IGM = {
         var list = new Client.Feed.TagMedia(s, term);
         list.get().then(function(res) {
             var log = `Found ${res.length} items for Hashtag #${term}.`;
-            console.log(log);
             output(log);
             res.forEach(function (item, index) {
                     currentSet.push(item.params);
@@ -183,7 +206,7 @@ const IGM = {
             currentSetIndex++;
             successLikeCount++;
             tagLikeCount++;
-            output(`Successfully liked media ID ${id}.`, 'success');
+            client.send(JSON.stringify({action: 'liked', success: true, media: id, likesSinceStart: successLikeCount}));
             return like;
         };
         
@@ -199,7 +222,7 @@ const IGM = {
             }
         };
         
-        totalLikeCount++;
+        
         
         return new Client.Request(s)
                     .setMethod('POST')
@@ -223,8 +246,13 @@ const CMD_LIST = {
         }
         running = true;
         hashtags = keywords.split(',');
-
-        initTagRoutine(hashtags[tagCursor]);
+        // Store session in DB
+        db.insertSession(hashtags, user.params.followerCount, sid => {
+            output("DB says session is saved with ID " + sid);
+            botSessionId = sid;
+            initTagRoutine(hashtags[tagCursor]);
+        });
+        
 
 
     },
