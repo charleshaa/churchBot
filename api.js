@@ -11,7 +11,7 @@ module.exports = function(db){
             });
         },
         lastSession: (req, res) => {
-
+            
         }
     }
 };
