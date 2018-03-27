@@ -26,8 +26,10 @@ module.exports = function(dbName){
                                     author_displayname, 
                                     author_avatar, 
                                     caption,
-                                    web_link
+                                    web_link,
+                                    photo_url
                                 ) VALUES(
+                                    ?,
                                     ?,
                                     ?,
                                     ?,
@@ -45,7 +47,8 @@ module.exports = function(dbName){
             media.user.full_name,
             media.user.profile_pic_url,
             media.caption,
-            media.webLink
+            media.webLink,
+            media.images[0].url
         ],
             function(err){
                 if(err){
@@ -92,28 +95,32 @@ module.exports = function(dbName){
 
     };
 
-    this.getMedia = (limit, cb) => {
-        let stmt = `SELECT DISTINCT ig_id FROM media 
+    this.getMedia = (limit, offset, cb) => {
+        let stmt = `SELECT DISTINCT * FROM media 
                     ORDER BY id DESC 
-                    LIMIT ${limit}`;
+                    LIMIT ${limit} 
+                    OFFSET ${offset}`;
         return db.all(stmt, [], function(err, rows){
             if(err) return failed(err);
             if(cb) cb(rows);            
         });
     };
 
-    this.insertSession = (tags, cb) => {
+    this.insertSession = (tags, followers, cb) => {
         const stmt = `INSERT INTO sessions(
             tags, 
-            tag_count 
+            tag_count,
+            followers_count
         ) VALUES(
+            ?,
             ?,
             ?
         );`;
         const list = tags.join(',');
         return db.run(stmt, 
         [list,
-        tags.length],
+        tags.length, 
+        followers],
         function(){
             console.info(`Inserted session with ID ${this.lastID}`);
             if (cb) cb(this.lastID);
@@ -271,7 +278,8 @@ module.exports = function(dbName){
                         like_success INTEGER DEFAULT (0), 
                         start_time TIMESTAMP DEFAULT (strftime('%s', 'now')),
                         end_time TIMESTAMP,
-                        flags_count INTEGER DEFAULT (0)
+                        flags_count INTEGER DEFAULT (0),
+                        followers_count INTEGER
                     )`;
         db.run(stmt, createStratsTable);
     };

@@ -12,10 +12,13 @@ const Database = require('./db');
 const db = new Database('testBot');
 db.init();
 
+const api = require('./api')(db);
+
+
 const IG_USERNAME = (process.env.IG_USERNAME || 'plop');
 const IG_PASSWORD = (process.env.IG_PASSWORD || 'plavip');
 const SOCK_PORT = 8080;
-const LIKES_PER_DAY = 1000;
+const LIKES_PER_DAY = 2000;
 const LIKES_PER_TAG = 10;
 
 var Client = require('instagram-private-api').V1;
@@ -77,6 +80,7 @@ const initInstagram = () => {
         session.getAccount().then(function(account) {
             output(`Successfully acting as @${account.params.username}.`);
             user = account;
+            output(account.params);
         });
 
         return session;
@@ -149,7 +153,7 @@ const initTagRoutine = tag => {
     tagLikecount = 0;
     IGM.search(tag, true);
     // Store session in DB
-    db.insertSession(hashtags, sid => {
+    db.insertSession(hashtags, user.params.followerCount, sid => {
         output("DB says session is saved with ID " + sid);
         botSessionId = sid;
     });
@@ -239,7 +243,7 @@ const CMD_LIST = {
         console.log("Should perform a search for hashtag: " + tag);
         var list = new Client.Feed.TagMedia(s, tag);
         list.get().then(function(res) {
-            output(res[0]);
+            output(res[0].params.images);
             output("Got a set of results:");
             output(`<a target="_blank" href="${res[0].params.webLink}">${res[0].params.id}</a>`);
         });
@@ -321,11 +325,10 @@ const setupServerEvents = (wss) => {
 
 };
 
+app.get('/test', api.latestMedia);
+
 const test = () => {
-    db.getMediaBy('id', 2, 100, function(medias){
-        output(medias);
-        db.getMedia(100, output);
-    });
+    
 };
 
 
