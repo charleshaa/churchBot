@@ -1,4 +1,3 @@
-
 const express = require('express');
 const app = express();
 const path = require('path');
@@ -6,7 +5,9 @@ const os = require('os');
 const fs = require('fs');
 const bodyParser = require('body-parser');
 const WebSocket = require('ws');
-const env = require('dotenv').config({path: path.join(__dirname, '.env')});
+const env = require('dotenv').config({
+    path: path.join(__dirname, '.env')
+});
 
 const Database = require('./db');
 const db = new Database('testBot');
@@ -33,19 +34,21 @@ app.set('port', (process.env.PORT || 3001));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded());
 app.use(bodyParser.json());
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     next();
-  });
-app.get('/', function(req, res) {
+});
+app.get('/', function (req, res) {
     res.sendFile(path.join(__dirname + '/terminal.html'));
 });
-app.listen(app.get('port'), function() {
+app.listen(app.get('port'), function () {
     console.log('Example app listening on port ' + app.get('port'))
 });
 
-const wss = new WebSocket.Server({port: SOCK_PORT});
+const wss = new WebSocket.Server({
+    port: SOCK_PORT
+});
 var client;
 var likeInterval;
 var running = false;
@@ -62,7 +65,7 @@ var botSessionId;
 
 const output = (msg, type = 'info') => {
     if (console[type]) console[type](msg)
-        else console.log(msg);
+    else console.log(msg);
     if (client) {
         if (typeof msg === "string") {
             return client.send(msg);
@@ -79,7 +82,7 @@ const output = (msg, type = 'info') => {
 };
 
 const sendStats = media => {
-    if(!client) return false;
+    if (!client) return false;
 
     const obj = {
         likesSinceStart: successLikeCount,
@@ -102,9 +105,9 @@ const sendStats = media => {
 const initInstagram = () => {
     if (s)
         return true;
-    Client.Session.create(device, storage, IG_USERNAME, IG_PASSWORD).then(function(session) {
+    Client.Session.create(device, storage, IG_USERNAME, IG_PASSWORD).then(function (session) {
         s = session;
-        session.getAccount().then(function(account) {
+        session.getAccount().then(function (account) {
             output(`Successfully acting as @${account.params.username}.`);
             user = account;
             output(account.params);
@@ -131,9 +134,9 @@ const switchTag = (dir = 'next') => {
     tagLikeCount = 0;
     currentSetIndex = 0;
     tagCursor = dir === 'next' ? tagCursor + 1 : tagCursor - 1;
-    if ( (tagCursor === 0 || tagCursor === -1)  && dir === 'prev') tagCursor = hashtags.length - 1;
+    if ((tagCursor === 0 || tagCursor === -1) && dir === 'prev') tagCursor = hashtags.length - 1;
     currentTag = hashtags[tagCursor];
-    if(!currentTag){
+    if (!currentTag) {
         tagCursor = 0;
         currentTag = hashtags[tagCursor];
         initTagRoutine(currentTag);
@@ -146,33 +149,33 @@ const switchTag = (dir = 'next') => {
 const likeMedia = media => {
     totalLikeCount++;
     sendStats(media);
-    db.insertMedia(media, function(id){
-        db.insertLike(botSessionId, media.id, currentTag, true, id, function(id){
+    db.insertMedia(media, function (id) {
+        db.insertLike(botSessionId, media.id, currentTag, true, id, function (id) {
             IGM.like(currentSet[currentSetIndex].id, id);
-            
+
         });
     });
-    
+
 };
 
 const routine = () => {
-    if(!running){
+    if (!running) {
         return false;
     }
-    if(currentSetIndex >= currentSet.length - 1 || currentSetIndex >= LIKES_PER_TAG){
+    if (currentSetIndex >= currentSet.length - 1 || currentSetIndex >= LIKES_PER_TAG) {
         output('Should wether switch or fail.');
-        if(currentSet.length > 1){
+        if (currentSet.length > 1) {
             return switchTag();
         } else {
             return false;
         }
     }
-    
+
     likeMedia(currentSet[currentSetIndex]);
 };
 
 const initTagRoutine = tag => {
-    if(likeInterval) clearInterval(likeInterval);
+    if (likeInterval) clearInterval(likeInterval);
     output(`Starting with Hashtag #${tag}...`, 'info');
     // 24h * 60 minutes * 60 seconds * 1000 miliseconds / LPD
     var delay = (24 * 3600 * 1000) / LIKES_PER_DAY;
@@ -188,50 +191,60 @@ const initTagRoutine = tag => {
 const IGM = {
     search: (term, start = false) => {
         currentSet = [];
-        if(!s) return false;
+        if (!s) return false;
         var list = new Client.Feed.TagMedia(s, term);
-        list.get().then(function(res) {
+        list.get().then(function (res) {
             var log = `Found ${res.length} items for Hashtag #${term}.`;
             output(log);
             res.forEach(function (item, index) {
-                    currentSet.push(item.params);
+                currentSet.push(item.params);
             });
-            if(start) routine();
+            if (start) routine();
         });
     },
     like: (id, likeId) => {
-        if(!id || id === "") return false;
-        const success = function(data) {
+        if (!id || id === "") return false;
+        const success = function (data) {
             var like = new Client.Like(s, {});
             currentSetIndex++;
             successLikeCount++;
             tagLikeCount++;
-            client.send(JSON.stringify({action: 'liked', success: true, media: id, likesSinceStart: successLikeCount}));
+            client.send(JSON.stringify({
+                action: 'liked',
+                success: true,
+                media: id,
+                likesSinceStart: successLikeCount
+            }));
             return like;
         };
-        
+
         const error = function (err) {
             output(err.message, 'error');
             output('ERROR: Here is the response:', 'error');
             output(err, 'error');
             db.likeFailed(likeId);
             errorStrikes++;
-            if(errorStrikes > 3){
+            if (errorStrikes > 3) {
                 errorStrikes = 0;
                 switchTag();
             }
         };
-        
-        
-        
+
+
+
         return new Client.Request(s)
-                    .setMethod('POST')
-                    .setResource('like', {id: id})
-                    .generateUUID()
-                    .setData({media_id: id, src: "profile"})
-                    .signPayload()
-                    .send()
-                    .then(success).catch(error);
+            .setMethod('POST')
+            .setResource('like', {
+                id: id
+            })
+            .generateUUID()
+            .setData({
+                media_id: id,
+                src: "profile"
+            })
+            .signPayload()
+            .send()
+            .then(success).catch(error);
 
     }
 };
@@ -239,8 +252,8 @@ const IGM = {
 const CMD_LIST = {
     connect: initInstagram,
     start: keywords => {
-        if(!s) return output('No instagram session active.', 'error');
-        if(running){
+        if (!s) return output('No instagram session active.', 'error');
+        if (running) {
             output('McBot Face is already at work. Use the "stop" command before starting a new run.', 'warning');
             return false;
         }
@@ -252,7 +265,7 @@ const CMD_LIST = {
             botSessionId = sid;
             initTagRoutine(hashtags[tagCursor]);
         });
-        
+
 
 
     },
@@ -260,15 +273,15 @@ const CMD_LIST = {
     next: () => switchTag(),
     prev: () => switchTag('prev'),
     insert: (args) => {
-        if (args[0] === 'tag'){
-            db.insertTag(args[1], function(data){
+        if (args[0] === 'tag') {
+            db.insertTag(args[1], function (data) {
                 output(data);
             });
         }
     },
     get: (args) => {
-        if (args[0] === 'tag'){
-            db.getTagBySlug(args[1], function(data){
+        if (args[0] === 'tag') {
+            db.getTagBySlug(args[1], function (data) {
                 output(data);
             });
         }
@@ -276,30 +289,35 @@ const CMD_LIST = {
     search: tag => {
         console.log("Should perform a search for hashtag: " + tag);
         var list = new Client.Feed.TagMedia(s, tag);
-        list.get().then(function(res) {
+        list.get().then(function (res) {
             output(res[0].params.images);
             output("Got a set of results:");
             output(`<a target="_blank" href="${res[0].params.webLink}">${res[0].params.id}</a>`);
         });
     },
     like: id => {
-        if(!id || id === "") return output("ERROR: No ID specified");
+        if (!id || id === "") return output("ERROR: No ID specified");
         output("Will like media ID: " + id);
         var like = new Client.Request(s)
-                    .setMethod('POST')
-                    .setResource('like', {id: id})
-                    .generateUUID()
-                    .setData({media_id: id, src: "profile"})
-                    .signPayload()
-                    .send()
-                    .then(function(data) {
-                        output(`Successfully liked media ID ${id}`);
-                        return new Client.Like(s, {});
-                    }).catch(function (err) {
-                        output(err.message);
-                        output('ERROR: Here is the response:', 'error');
-                        output(err);
-                    });
+            .setMethod('POST')
+            .setResource('like', {
+                id: id
+            })
+            .generateUUID()
+            .setData({
+                media_id: id,
+                src: "profile"
+            })
+            .signPayload()
+            .send()
+            .then(function (data) {
+                output(`Successfully liked media ID ${id}`);
+                return new Client.Like(s, {});
+            }).catch(function (err) {
+                output(err.message);
+                output('ERROR: Here is the response:', 'error');
+                output(err);
+            });
 
     },
     log: exp => {
@@ -313,10 +331,10 @@ const SOCK_EVENTS = {
         var params = msg.split(' ');
         var cmd = params[0];
         if (CMD_LIST.hasOwnProperty(cmd)) {
-            var args = params.splice(0,1);
+            var args = params.splice(0, 1);
             if (params.length > 1) CMD_LIST[cmd](params)
             else CMD_LIST[cmd](params[0]);
-            
+
         } else {
             output("ERROR: Command not found: " + params[0]);
         }
@@ -362,10 +380,10 @@ const setupServerEvents = (wss) => {
 app.get('/test', api.latestMedia);
 
 const test = () => {
-    
+
 };
 
 
 setupServerEvents(wss);
-test();
+//test();
 // Instagram
