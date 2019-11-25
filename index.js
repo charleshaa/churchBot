@@ -19,8 +19,8 @@ const api = require('./api')(db);
 const IG_USERNAME = (process.env.IG_USERNAME || 'plop');
 const IG_PASSWORD = (process.env.IG_PASSWORD || 'plavip');
 const SOCK_PORT = 8080;
-const LIKES_PER_DAY = 3000;
-const LIKES_PER_TAG = 10;
+const LIKES_PER_DAY = 4000;
+const LIKES_PER_TAG = 50;
 
 var Client = require('instagram-private-api').V1;
 var device = new Client.Device('charleshaa');
@@ -132,7 +132,7 @@ const resetBot = () => {
 const switchTag = (dir = 'next') => {
     db.updateLikeCount(currentTag, tagLikeCount);
     tagLikeCount = 0;
-    currentSetIndex = 0;
+    currentSetIndex = 0; 
     tagCursor = dir === 'next' ? tagCursor + 1 : tagCursor - 1;
     if ((tagCursor === 0 || tagCursor === -1) && dir === 'prev') tagCursor = hashtags.length - 1;
     currentTag = hashtags[tagCursor];
@@ -152,7 +152,8 @@ const likeMedia = media => {
     db.insertMedia(media, function (id) {
         db.insertLike(botSessionId, media.id, currentTag, true, id, function (id) {
             IGM.like(currentSet[currentSetIndex].id, id);
-
+        }, function () {
+            CMD_LIST.next();
         });
     });
 
@@ -164,14 +165,12 @@ const routine = () => {
     }
     if (currentSetIndex >= currentSet.length - 1 || currentSetIndex >= LIKES_PER_TAG) {
         output('Should wether switch or fail.');
-        if (currentSet.length > 1) {
-            return switchTag();
-        } else {
-            return false;
-        }
+        switchTag();
+    } else {
+        likeMedia(currentSet[currentSetIndex]);
     }
 
-    likeMedia(currentSet[currentSetIndex]);
+    
 };
 
 const initTagRoutine = tag => {
@@ -275,14 +274,14 @@ const CMD_LIST = {
     insert: (args) => {
         if (args[0] === 'tag') {
             db.insertTag(args[1], function (data) {
-                output(data);
+                //output(data);
             });
         }
     },
     get: (args) => {
         if (args[0] === 'tag') {
             db.getTagBySlug(args[1], function (data) {
-                output(data);
+                // output(data);
             });
         }
     },
@@ -290,7 +289,7 @@ const CMD_LIST = {
         console.log("Should perform a search for hashtag: " + tag);
         var list = new Client.Feed.TagMedia(s, tag);
         list.get().then(function (res) {
-            output(res[0].params.images);
+            //output(res[0].params.images);
             output("Got a set of results:");
             output(`<a target="_blank" href="${res[0].params.webLink}">${res[0].params.id}</a>`);
         });
@@ -340,6 +339,8 @@ const SOCK_EVENTS = {
         }
     }
 };
+
+
 
 const SERVER_EVENTS = {
     listening: () => {

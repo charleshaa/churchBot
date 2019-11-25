@@ -1,19 +1,19 @@
 const sql = require('sqlite3').verbose();
 
-module.exports = function(dbName){
+module.exports = function (dbName) {
     var dis = this;
 
     this.fileName = dbName;
-    var db; 
-    
+    var db;
+
     this.init = () => {
         db = new sql.Database(this.fileName + '.sqlite3', createTagsTable);
-        db.on('trace', function(stmt){
+        db.on('trace', function (stmt) {
             console.info('\r\n---\r\nExecuted query: \r\n' + stmt + '\r\n---');
         });
     };
 
-    function validateTag(tag){
+    function validateTag(tag) {
         return tag.indexOf(' ') < 0 || tag.indexOf('#') < 0;
     }
 
@@ -38,36 +38,36 @@ module.exports = function(dbName){
                                     ?,
                                     ?,
                                     ?
-                                );`;        
+                                );`;
         return db.run(stmt, [
-            media.id, 
-            media.mediaType,
-            media.takenAt, 
-            media.user.username, 
-            media.user.full_name,
-            media.user.profile_pic_url,
-            media.caption,
-            media.webLink,
-            media.images[0].url
-        ],
-            function(err){
-                if(err){
+                media.id,
+                media.mediaType,
+                media.takenAt,
+                media.user.username,
+                media.user.full_name,
+                media.user.profile_pic_url,
+                media.caption,
+                media.webLink,
+                media.images[0].url
+            ],
+            function (err) {
+                if (err) {
                     console.log('ERROR !');
                     console.error(err);
                 } else {
                     if (cb) cb(this.lastID);
                 }
-                
+
             });
     }
 
     this.getTag = (id, cb) => {
         const stmt = `SELECT * FROM hashtags WHERE id = ${id}`;
         let data = [];
-        db.each(stmt, function(err, row){
+        db.each(stmt, function (err, row) {
             data.push(row);
-        }, function(){
-            if(cb) cb(data);
+        }, function () {
+            if (cb) cb(data);
         });
     }
 
@@ -75,11 +75,11 @@ module.exports = function(dbName){
         const stmt = `SELECT * FROM hashtags WHERE tag = '${tag}'`;
         console.log('Should get tag with query: ', stmt);
         let data = [];
-        db.each(stmt, function(err, row){
-            if(err) return output(err);
+        db.each(stmt, function (err, row) {
+            if (err) return output(err);
             data.push(row);
-        }, function(){
-            if(cb) cb(data);
+        }, function () {
+            if (cb) cb(data);
         });
     }
 
@@ -88,9 +88,9 @@ module.exports = function(dbName){
                     WHERE ${prop} = '${value}' 
                     ORDER BY id DESC 
                     LIMIT ${limit}`;
-        return db.all(stmt, [], function(err, rows){
-            if(err) return failed(err);
-            if(cb) cb(rows);            
+        return db.all(stmt, [], function (err, rows) {
+            if (err) return failed(err);
+            if (cb) cb(rows);
         });
 
     };
@@ -100,9 +100,9 @@ module.exports = function(dbName){
                     ORDER BY id DESC 
                     LIMIT ${limit} 
                     OFFSET ${offset}`;
-        return db.all(stmt, [], function(err, rows){
-            if(err) return failed(err);
-            if(cb) cb(rows);            
+        return db.all(stmt, [], function (err, rows) {
+            if (err) return failed(err);
+            if (cb) cb(rows);
         });
     };
 
@@ -117,14 +117,14 @@ module.exports = function(dbName){
             ?
         );`;
         const list = tags.join(',');
-        return db.run(stmt, 
-        [list,
-        tags.length, 
-        followers],
-        function(){
-            console.info(`Inserted session with ID ${this.lastID}`);
-            if (cb) cb(this.lastID);
-        });
+        return db.run(stmt, [list,
+                tags.length,
+                followers
+            ],
+            function () {
+                console.info(`Inserted session with ID ${this.lastID}`);
+                if (cb) cb(this.lastID);
+            });
     };
 
     this.closeSession = (data, cb) => {
@@ -136,19 +136,19 @@ module.exports = function(dbName){
                         WHERE id = ?`;
 
         return db.run(stmt, [
-                        data.attemps,
-                        data.success,
-                        data.flagCount,
-                        data.sid
-                        ],
-                        function(){
-                            console.info(`Updated session ID ${this.lastID}`);
-                            if (cb) cb(this.lastID, data);
-                        });
+                data.attemps,
+                data.success,
+                data.flagCount,
+                data.sid
+            ],
+            function () {
+                console.info(`Updated session ID ${this.lastID}`);
+                if (cb) cb(this.lastID, data);
+            });
 
     };
 
-    this.insertLike = (sid, igid, hashtag, success, mediaId, cb) => {
+    this.insertLike = (sid, igid, hashtag, success, mediaId, cb, errcb) => {
         const stmt = `INSERT INTO likes(
             session_id,
             hashtag, 
@@ -162,37 +162,38 @@ module.exports = function(dbName){
             ?,
             ?
         );`;
-        return db.run(stmt, [ 
-        sid,
-        hashtag,
-        igid,
-        success,
-        mediaId
-        ],
-        function(err){
-            if ( err ) {
-                console.log(err);
-            } else {
-                console.info(`Inserted like ID ${this.lastID}`);
-                if(cb) cb(this.lastID);
-            }
-            
-        });
+        return db.run(stmt, [
+                sid,
+                hashtag,
+                igid,
+                success,
+                mediaId
+            ],
+            function (err) {
+                if (err) {
+                    console.log(err);
+                    if (errcb) errcb();
+                } else {
+                    console.info(`Inserted like ID ${this.lastID}`);
+                    if (cb) cb(this.lastID);
+                }
+
+            });
     };
 
     this.likeFailed = id => {
         const stmt = `UPDATE likes SET 
                         success = 0 
                         WHERE id = ?`;
-        db.run(stmt, [id], function(){
+        db.run(stmt, [id], function () {
             console.log('Should have marked like ' + id + ' to have failed.');
         });
     };
 
-    this.insertTag = (tag, cb) =>{
-        if(!validateTag(tag)) return false;
+    this.insertTag = (tag, cb) => {
+        if (!validateTag(tag)) return false;
         const stmt = `INSERT INTO hashtags(tag) VALUES('${tag}');`;
-        return db.run(stmt, function(){
+        return db.run(stmt, function () {
             console.info(`Inserted tag #${tag} with ID ${this.lastID}`);
             if (cb) cb();
         });
@@ -217,16 +218,18 @@ module.exports = function(dbName){
         return db.run(stmt, [total, liked, sid], failed);
     };
 
-    function failed(err){
-        if(err){
+    function failed(err, cb, errcb) {
+        if (err) {
             console.error('\r\nERROR !\r\n');
             console.error(err);
+
         } else {
-            if(cb) cb(this);
+            if (cb) cb(this);
+            if (errcb) errcb(this);
         }
     }
 
-    function createTagsTable(){
+    function createTagsTable() {
         const stmt = `CREATE TABLE IF NOT EXISTS hashtags (
             id INTEGER PRIMARY KEY,
             tag TEXT UNIQUE, 
@@ -238,7 +241,7 @@ module.exports = function(dbName){
         db.run(stmt, createLikesTable);
     };
 
-    function createLikesTable(){
+    function createLikesTable() {
         const stmt = `CREATE TABLE IF NOT EXISTS likes (
                         id INTEGER PRIMARY KEY,
                         session_id INTEGER,
@@ -250,8 +253,8 @@ module.exports = function(dbName){
                     )`;
         db.run(stmt, createMediaTable);
     };
-    
-    function createMediaTable(){
+
+    function createMediaTable() {
         const stmt = `CREATE TABLE IF NOT EXISTS media (
                         id INTEGER PRIMARY KEY,
                         ig_id TEXT UNIQUE, 
@@ -270,7 +273,7 @@ module.exports = function(dbName){
         db.run(stmt, createSessionsTable);
     };
 
-    function createSessionsTable(){
+    function createSessionsTable() {
         const stmt = `CREATE TABLE IF NOT EXISTS sessions (
                         id INTEGER PRIMARY KEY,
                         tags TEXT,
@@ -285,7 +288,7 @@ module.exports = function(dbName){
         db.run(stmt, createStratsTable);
     };
 
-    function createStratsTable(){
+    function createStratsTable() {
         const stmt = `CREATE TABLE IF NOT EXISTS strats (
                         id INTEGER PRIMARY KEY,
                         tags TEXT,
@@ -297,5 +300,5 @@ module.exports = function(dbName){
                     )`;
         db.run(stmt, () => console.log('Finished initialising database'));
     };
-    
+
 };

@@ -87,3 +87,7 @@ section{
     margin: 0;
     
 }
+
+.mat-list-item{
+  height: auto;
+}
